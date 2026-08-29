@@ -1,0 +1,8 @@
+.DS_Store
+node_modules/
+.vercel/
+
+# The vendor's original Akira download (demo OTF + preview images + readme).
+# Not needed to run or build: src/fonts/AkiraExpanded.ttf is the converted
+# TrueType the app actually embeds.
+akira_expanded/

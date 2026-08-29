@@ -1,0 +1,156 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Daily Four — habit calendar generator</title>
+<style>
+  :root{
+    --ink:#17150F; --ink-2:#5A554C; --rule:#BFB9AD; --rule-2:#E0DCD3;
+    --stamp:#7A2E2E; --paper:#FFFFFF; --shell:#F4F2ED;
+    --mono:'DF Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%}
+  body{
+    background:var(--shell); color:var(--ink); font-family:var(--mono);
+    font-size:13px; line-height:1.45; -webkit-font-smoothing:antialiased;
+  }
+  .app{display:grid; grid-template-columns:300px 1fr; height:100%}
+
+  /* ---- controls ---- */
+  .panel{
+    background:var(--paper); border-right:1px solid var(--rule);
+    padding:26px 24px; overflow-y:auto;
+  }
+  .eyebrow{
+    color:var(--stamp); font-size:10px; letter-spacing:.22em;
+    text-transform:uppercase; margin:0 0 6px;
+  }
+  h1{font-size:19px; letter-spacing:.01em; margin:0 0 4px; font-weight:600}
+  .sub{color:var(--ink-2); font-size:11.5px; margin:0 0 24px}
+  fieldset{border:0; padding:0; margin:0 0 22px}
+  legend{
+    font-size:10px; letter-spacing:.18em; text-transform:uppercase;
+    color:var(--ink-2); padding:0; margin-bottom:9px;
+  }
+  label{display:block; margin-bottom:9px}
+  .lab{
+    display:flex; justify-content:space-between; align-items:baseline;
+    font-size:10px; letter-spacing:.1em; text-transform:uppercase;
+    color:var(--ink-2); margin-bottom:3px;
+  }
+  .count{font-variant-numeric:tabular-nums; color:var(--rule)}
+  .count.full{color:var(--stamp)}
+  input,select{
+    width:100%; font:inherit; font-size:12.5px; color:var(--ink);
+    background:var(--paper); border:1px solid var(--rule);
+    padding:7px 9px; border-radius:2px;
+  }
+  input:hover,select:hover{border-color:var(--ink-2)}
+  input:focus-visible,select:focus-visible,button:focus-visible{
+    outline:2px solid var(--stamp); outline-offset:2px; border-color:var(--ink);
+  }
+  .row{display:grid; grid-template-columns:1fr 84px; gap:8px}
+  .actions{display:grid; gap:8px; margin-top:26px}
+  button{
+    font:inherit; font-size:11px; letter-spacing:.14em; text-transform:uppercase;
+    padding:11px 14px; border-radius:2px; cursor:pointer; border:1px solid var(--ink);
+    background:var(--ink); color:var(--paper);
+  }
+  button.ghost{background:var(--paper); color:var(--ink)}
+  button:disabled{opacity:.35; cursor:not-allowed}
+  button:not(:disabled):hover{background:var(--stamp); border-color:var(--stamp); color:var(--paper)}
+  .note{font-size:10.5px; color:var(--ink-2); margin-top:14px; line-height:1.5}
+  .warn{color:var(--stamp); font-size:10.5px; margin-top:12px; min-height:14px}
+
+  /* ---- preview ---- */
+  .stage{
+    padding:28px; overflow:auto; display:flex; align-items:flex-start;
+    justify-content:center;
+  }
+  .sheet{
+    width:100%; max-width:1180px; aspect-ratio:420/297;
+    background:var(--paper); box-shadow:0 1px 2px rgba(23,21,15,.10), 0 8px 34px rgba(23,21,15,.10);
+  }
+  .sheet-svg{display:block; width:100%; height:100%}
+
+  @media (max-width:900px){
+    .app{grid-template-columns:1fr; height:auto}
+    .panel{border-right:0; border-bottom:1px solid var(--rule)}
+  }
+
+  /* ---- print: the preview is directly printable as a secondary path ---- */
+  @page{ size:A3 landscape; margin:0 }
+  @media print{
+    body{background:var(--paper)}
+    .app{display:block; height:auto}
+    .panel{display:none}
+    .stage{padding:0; display:block; overflow:visible}
+    .sheet{
+      width:420mm; height:297mm; max-width:none; aspect-ratio:auto;
+      box-shadow:none; page-break-after:avoid;
+    }
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <form class="panel" id="form" autocomplete="off">
+    <p class="eyebrow">Daily Four · Habit Sheet</p>
+    <h1>Calendar generator</h1>
+    <p class="sub">A printable A3 landscape habit sheet. Filled in with a pen.</p>
+
+    <fieldset>
+      <legend>Habits — up to four</legend>
+      <div id="habits"></div>
+    </fieldset>
+
+    <fieldset>
+      <legend>Month</legend>
+      <div class="row">
+        <label>
+          <span class="lab">Month</span>
+          <select id="month"></select>
+        </label>
+        <label>
+          <span class="lab">Year</span>
+          <input id="year" type="number" min="2020" max="2100" step="1" inputmode="numeric">
+        </label>
+      </div>
+      <label>
+        <span class="lab">Week starts</span>
+        <select id="weekStart">
+          <option value="monday">Monday</option>
+          <option value="sunday">Sunday</option>
+        </select>
+      </label>
+    </fieldset>
+
+    <div class="actions">
+      <button type="button" id="generate" class="ghost">Generate</button>
+      <button type="button" id="download">Download PDF</button>
+      <button type="button" id="print" class="ghost">Print sheet</button>
+    </div>
+    <p class="warn" id="warn" role="status" aria-live="polite"></p>
+    <p class="note">
+      Four habits is the maximum — the cell layout does not survive a fifth row
+      at A3. Empty fields are dropped, not printed as blank rows.
+    </p>
+  </form>
+
+  <main class="stage">
+    <div class="sheet" id="sheet" role="img" aria-label="Habit calendar preview"></div>
+  </main>
+</div>
+
+<script src="vendor/jspdf.umd.min.js"></script>
+<script src="src/fonts/fonts-base64.js"></script>
+<script src="src/metrics.js"></script>
+<script src="src/calendar.js"></script>
+<script src="src/layout.js"></script>
+<script src="src/render-dom.js"></script>
+<script src="src/render-pdf.js"></script>
+<script src="src/app.js"></script>
+</body>
+</html>
