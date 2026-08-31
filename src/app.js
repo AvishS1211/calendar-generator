@@ -14,6 +14,8 @@
     generate: document.getElementById('generate'),
     download: document.getElementById('download'),
     print: document.getElementById('print'),
+    outline: document.getElementById('outline'),
+    outlineHint: document.getElementById('outlineHint'),
     warn: document.getElementById('warn'),
     sheet: document.getElementById('sheet')
   };
@@ -77,6 +79,10 @@
     el.print.disabled = !ok;
     el.warn.textContent = ok ? '' : 'Add at least one habit to generate a sheet.';
 
+    el.outlineHint.textContent = el.outline.checked
+      ? 'Glyphs are drawn as vector paths and the PDF references no fonts at all — nothing for a print shop to substitute.'
+      : 'Text stays selectable with fonts embedded. Smaller, but some print workflows substitute the display font.';
+
     if (ok) {
       current = model;
       window.DFRenderDOM.render(el.sheet, model);
@@ -100,7 +106,7 @@
     // Let the button repaint before jsPDF blocks the thread embedding fonts.
     setTimeout(function () {
       try {
-        window.DFRenderPDF.download(current);
+        window.DFRenderPDF.download(current, { outlineText: el.outline.checked });
       } catch (e) {
         el.warn.textContent = 'PDF failed: ' + e.message;
       }

@@ -21,7 +21,8 @@ src/
   calendar.js     month maths — leading blanks, row count, ISO week
   layout.js       design tokens, every measurement, scene builder
   render-dom.js   live preview (SVG)
-  render-pdf.js   jsPDF drawing
+  render-pdf.js   jsPDF drawing, text or outlined
+  glyphs.js       TrueType glyf parser -> vector outlines
   metrics.js      generated font advance widths
   fonts/          TTFs + generated base64
 tools/
@@ -44,10 +45,41 @@ because jsPDF applies neither.
 
 ## PDF export
 
-`jsPDF` with vector primitives (`rect`, `line`, `text`) — no html2canvas, no
-screenshot-based export. The sheet is almost entirely hairlines and 2.3mm type,
-which is exactly where rasterising fails at A3. Output is one page,
-420 × 297mm, with both fonts embedded as subsetted TrueType.
+`jsPDF` with vector primitives (`rect`, `line`, `text`/paths) — no html2canvas,
+no screenshot-based export. The sheet is almost entirely hairlines and 2.3mm
+type, which is exactly where rasterising fails at A3. Output is one page,
+420 × 297mm.
+
+There are two export modes, toggled by **Outline text for print**:
+
+**Outlined (default).** Every glyph is read out of the TTF by `glyphs.js` and
+drawn as filled vector paths, and the font resource dictionary is emptied, so
+the PDF references no fonts whatsoever — `pdffonts` on the result prints an
+empty table. Still fully vector; hairlines and small type stay crisp. This is
+what to send a printer.
+
+**Text.** Text stays selectable and searchable with both TTFs embedded. About
+10× smaller, but see below.
+
+### Why outlining is the default
+
+jsPDF always declares the 14 standard PDF fonts (Helvetica, Courier, Times,
+Symbol, ZapfDingbats) in the page resource dictionary, whether or not the
+content stream ever selects one. They are *not* embedded, because they are
+assumed present in the viewer. A print shop's preflight walks that dictionary,
+sees fonts marked "not embedded", and either rejects the job or silently
+substitutes — and that substitution is what replaces the display face on
+output, even though the real fonts were embedded correctly all along.
+
+Outlining removes the entire class of problem: no fonts referenced, nothing to
+substitute. The outlined and text renders are metrically identical — the same
+`layout.js` scene, the same advance widths from `metrics.js`; a rendered
+"SEPTEMBER" measures 113.792mm either way. Only edge antialiasing differs,
+since filled paths are not hinted.
+
+Emptying the font dictionary is done by padding the replacement back to the
+original byte length, so every offset in the cross-reference table stays valid,
+and it skips stream bodies so compressed page data is never touched.
 
 `window.print()` is kept as a secondary path via
 `@page { size: A3 landscape; margin: 0 }`, so the preview is directly printable.
