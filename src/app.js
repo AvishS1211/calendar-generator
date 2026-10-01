@@ -47,6 +47,7 @@
   var now = new Date();
   el.month.value = String(now.getMonth());
   el.year.value = String(now.getFullYear());
+  el.weekStart.value = 'sunday';
 
   /* ---- state ---- */
   function clampYear() {
